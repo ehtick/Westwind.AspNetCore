@@ -185,7 +185,7 @@ namespace Westwind.AspNetCore.Utilities
                 Converters = { new StringEnumConverter() }
             };
 
-            // serialize dates to new Date(xxxx)
+            // serialize dates to new Date(xxxx) so the value can execute and produce a JS date
             settings.Converters.Add(new JavaScriptDateTimeConverter());
 
             return JsonConvert.SerializeObject(value,settings);
