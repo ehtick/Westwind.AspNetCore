@@ -123,6 +123,59 @@ namespace Westwind.AspNetCore.Security
             return true;
         }
 
+        /// <summary>
+        /// Use this to create a UserState instance - typically call from `Initialize()` method of controller
+        /// prior to action execution.
+        /// </summary>
+        /// <param name="mode">Mode using either Identity Claims or an Http Cookie to store data</param>
+        /// <param name="settings">Optional - Settings to use for UserState. If null, the `.Current` settings are used</param>
+        public static TUserState CreateUserState<TUserState>(HttpContext ctx, UserStateWebSettings settings = null) where TUserState : UserState, new()
+        {
+            settings = settings ?? UserStateWebSettings.Current;
+            if (!settings.IsUserStateEnabled) return new TUserState();
+
+            TUserState userState = null;
+
+            string rawCookie = null;
+            if (settings.PersistanceMode == UserStatePersistanceModes.Cookie)
+            {
+                rawCookie = ctx.Request.Cookies[settings.CookieName];
+                if (!string.IsNullOrEmpty(rawCookie))
+                    rawCookie = Encryption.DecryptString(rawCookie, UserStateWebSettings.Current.CookieEncryptionKey, true);
+            }
+            else
+            {
+                var httpUser = ctx.User.Identity as ClaimsIdentity;
+                if (httpUser == null)
+                {
+                    userState = new TUserState();
+                }
+                rawCookie = httpUser.FindFirst("UserState")?.Value;
+            }
+
+            if (string.IsNullOrEmpty(rawCookie))
+            {
+                userState = new TUserState();
+            }
+            else
+            {
+                try
+                {
+                    var initialAppUserState = rawCookie;
+
+                    userState = CreateFromString<TUserState>(initialAppUserState);
+                    if (userState == null)
+                        userState = new TUserState();
+                }
+                catch
+                {
+                    userState = new TUserState();
+                }
+            }
+
+            return userState;
+        }
+    
 
         /// <summary>
         /// Creates an instance of a userstate object from serialized
